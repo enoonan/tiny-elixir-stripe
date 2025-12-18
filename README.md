@@ -21,7 +21,7 @@ Add `tiny_elixir_stripe` to your `mix.exs`:
 ```elixir
 def deps do
   [
-    {:tiny_elixir_stripe, "~> 0.0.1"},
+    {:tiny_elixir_stripe, "~> 0.0.3"},
     {:igniter, "~> 0.6"}  # Optional but recommended for code generation
   ]
 end
