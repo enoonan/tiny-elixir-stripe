@@ -1,7 +1,7 @@
 defmodule TinyElixirStripe.MixProject do
   use Mix.Project
 
-  @version "0.0.3"
+  @version "0.0.5"
   @source_url "https://github.com/enoonan/tiny-elixir-stripe"
 
   def project do
