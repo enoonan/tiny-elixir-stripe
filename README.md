@@ -1,6 +1,6 @@
 # PinStripe
 
-**A sharp, professional Stripe integration for Elixir.**
+**A minimalist Stripe integration for Elixir.**
 
 > #### Warning {: .warning}
 >

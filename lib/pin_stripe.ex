@@ -1,6 +1,6 @@
 defmodule PinStripe do
   @moduledoc """
-  A minimal Stripe SDK for Elixir with webhook handling, built on Req and Spark.
+  A minimal Stripe SDK for Elixir.
 
   > #### Warning {: .warning}
   >
