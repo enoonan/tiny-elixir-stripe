@@ -1,0 +1,8 @@
+{
+  "error": {
+    "code": "parameter_invalid_empty",
+    "doc_url": "https://stripe.com/docs/error-codes/parameter-invalid-empty",
+    "message": "Invalid request: missing required parameter",
+    "type": "invalid_request_error"
+  }
+}

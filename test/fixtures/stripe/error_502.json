@@ -1,0 +1,6 @@
+{
+  "error": {
+    "message": "An error occurred with our API",
+    "type": "api_error"
+  }
+}

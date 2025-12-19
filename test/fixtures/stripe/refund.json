@@ -1,0 +1,26 @@
+{
+  "amount": 1000,
+  "balance_transaction": "txn_3Sg75kRKlgyw2Y861GK0mh5J",
+  "charge": "ch_3Sg75kRKlgyw2Y8613dzThbu",
+  "created": 1766163829,
+  "currency": "usd",
+  "destination_details": {
+    "card": {
+      "reference_status": "pending",
+      "reference_type": "acquirer_reference_number",
+      "type": "refund"
+    },
+    "type": "card"
+  },
+  "id": "re_3Sg75kRKlgyw2Y861NHnJ4y9",
+  "metadata": {
+    "pinstripe_fixture": "true"
+  },
+  "object": "refund",
+  "payment_intent": null,
+  "reason": null,
+  "receipt_number": null,
+  "source_transfer_reversal": null,
+  "status": "succeeded",
+  "transfer_reversal": null
+}

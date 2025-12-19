@@ -1,0 +1,6 @@
+{
+  "error": {
+    "message": "The request couldn't be completed due to a failure in a dependency external to Stripe",
+    "type": "api_error"
+  }
+}

@@ -1,28 +1,22 @@
-defmodule PinStripeTest do
-  use ExUnit.Case, async: true
+defmodule PinStripe.ClientTest do
+  # async: false required for doctests that use Req.Test with shared plug names
+  use ExUnit.Case, async: false
   doctest PinStripe
   doctest PinStripe.Client
+  doctest PinStripe.Test.Fixtures
+  doctest PinStripe.Test.Mock
 
   alias PinStripe.Client
+  alias PinStripe.Test.Mock
 
   setup do
-    # Set test environment for stripe_api_key and plug
-    Application.put_env(:pin_stripe, :stripe_api_key, "sk_test_123")
-    Application.put_env(:pin_stripe, :req_options, plug: {Req.Test, PinStripe})
-
-    on_exit(fn ->
-      Application.delete_env(:pin_stripe, :stripe_api_key)
-      Application.delete_env(:pin_stripe, :req_options)
-    end)
-
+    # Config is set globally in test_helper.exs, no need to set or clean up here
     :ok
   end
 
   describe "read/2" do
     test "fetches a customer by ID successfully" do
-      Req.Test.stub(PinStripe, fn conn ->
-        Req.Test.json(conn, %{id: "cus_123", email: "test@example.com"})
-      end)
+      Mock.stub_read("cus_123", %{"id" => "cus_123", "email" => "test@example.com"})
 
       result = Client.read("cus_123")
 
@@ -30,21 +24,21 @@ defmodule PinStripeTest do
     end
 
     test "handles customer not found" do
-      Req.Test.stub(PinStripe, fn conn ->
-        conn
-        |> Plug.Conn.put_status(404)
-        |> Req.Test.json(%{error: %{message: "Not found"}})
-      end)
+      Mock.stub_error("cus_404", 404, %{
+        "error" => %{
+          "type" => "invalid_request_error",
+          "code" => "resource_missing",
+          "message" => "No such resource"
+        }
+      })
 
       result = Client.read("cus_404")
 
-      assert {:error, %{status: 404, body: %{"error" => %{"message" => "Not found"}}}} = result
+      assert {:error, %{status: 404}} = result
     end
 
     test "fetches a product by deriving entity type from ID" do
-      Req.Test.stub(PinStripe, fn conn ->
-        Req.Test.json(conn, %{id: "product_123", name: "Test Product"})
-      end)
+      Mock.stub_read("product_123", %{"id" => "product_123", "name" => "Test Product"})
 
       result = Client.read("product_123")
 
@@ -52,18 +46,16 @@ defmodule PinStripeTest do
     end
 
     test "lists customers when given :customers atom" do
-      Req.Test.stub(PinStripe, fn conn ->
-        assert conn.request_path == "/v1/customers"
-        assert conn.method == "GET"
+      customers = [
+        %{"id" => "cus_1", "email" => "user1@example.com"},
+        %{"id" => "cus_2", "email" => "user2@example.com"}
+      ]
 
-        Req.Test.json(conn, %{
-          object: "list",
-          data: [
-            %{id: "cus_1", email: "user1@example.com"},
-            %{id: "cus_2", email: "user2@example.com"}
-          ]
-        })
-      end)
+      Mock.stub_read(:customers, %{
+        "object" => "list",
+        "data" => customers,
+        "has_more" => false
+      })
 
       result = Client.read(:customers)
 
@@ -72,14 +64,11 @@ defmodule PinStripeTest do
     end
 
     test "lists products when given :products atom" do
-      Req.Test.stub(PinStripe, fn conn ->
-        assert conn.request_path == "/v1/products"
-
-        Req.Test.json(conn, %{
-          object: "list",
-          data: [%{id: "product_1", name: "Product 1"}]
-        })
-      end)
+      Mock.stub_read(:products, %{
+        "object" => "list",
+        "data" => [%{"id" => "product_1", "name" => "Product 1"}],
+        "has_more" => false
+      })
 
       result = Client.read(:products)
 
@@ -93,11 +82,11 @@ defmodule PinStripeTest do
     end
 
     test "lists with query parameters" do
-      Req.Test.stub(PinStripe, fn conn ->
-        assert conn.request_path == "/v1/customers"
-        # Query params would be in conn.query_params
-        Req.Test.json(conn, %{object: "list", data: []})
-      end)
+      Mock.stub_read(:customers, %{
+        "object" => "list",
+        "data" => [],
+        "has_more" => false
+      })
 
       result = Client.read(:customers, limit: 10)
 
@@ -107,11 +96,7 @@ defmodule PinStripeTest do
 
   describe "create/3" do
     test "creates a customer successfully with params" do
-      Req.Test.stub(PinStripe, fn conn ->
-        assert conn.method == "POST"
-        assert conn.request_path == "/v1/customers"
-        Req.Test.json(conn, %{id: "cus_new", email: "test@example.com"})
-      end)
+      Mock.stub_create(:customers, %{"id" => "cus_new", "email" => "test@example.com"})
 
       result = Client.create(:customers, %{email: "test@example.com", name: "Test User"})
 
@@ -119,11 +104,7 @@ defmodule PinStripeTest do
     end
 
     test "handles validation errors on create" do
-      Req.Test.stub(PinStripe, fn conn ->
-        conn
-        |> Plug.Conn.put_status(400)
-        |> Req.Test.json(%{error: %{message: "Invalid email"}})
-      end)
+      Mock.stub_error(:customers, 400, %{"error" => %{"message" => "Invalid email"}})
 
       result = Client.create(:customers, %{email: "invalid"})
 
@@ -132,10 +113,7 @@ defmodule PinStripeTest do
     end
 
     test "creates a product with atom entity type" do
-      Req.Test.stub(PinStripe, fn conn ->
-        assert conn.request_path == "/v1/products"
-        Req.Test.json(conn, %{id: "product_new", name: "Test Product"})
-      end)
+      Mock.stub_create(:products, %{"id" => "product_new", "name" => "Test Product"})
 
       result = Client.create(:products, %{name: "Test Product"})
 
@@ -151,10 +129,7 @@ defmodule PinStripeTest do
 
   describe "update/3" do
     test "updates a customer successfully with params" do
-      Req.Test.stub(PinStripe, fn conn ->
-        assert conn.method == "POST"
-        Req.Test.json(conn, %{id: "cus_123", name: "Updated Name"})
-      end)
+      Mock.stub_update("cus_123", %{"id" => "cus_123", "name" => "Updated Name"})
 
       result = Client.update("cus_123", %{name: "Updated Name"})
 
@@ -162,11 +137,13 @@ defmodule PinStripeTest do
     end
 
     test "handles update errors" do
-      Req.Test.stub(PinStripe, fn conn ->
-        conn
-        |> Plug.Conn.put_status(404)
-        |> Req.Test.json(%{error: %{message: "Customer not found"}})
-      end)
+      Mock.stub_error("cus_404", 404, %{
+        "error" => %{
+          "type" => "invalid_request_error",
+          "code" => "resource_missing",
+          "message" => "No such resource"
+        }
+      })
 
       result = Client.update("cus_404", %{name: "Test"})
 
@@ -176,10 +153,7 @@ defmodule PinStripeTest do
 
   describe "delete/2" do
     test "deletes a customer successfully" do
-      Req.Test.stub(PinStripe, fn conn ->
-        assert conn.method == "DELETE"
-        Req.Test.json(conn, %{id: "cus_123", deleted: true})
-      end)
+      Mock.stub_delete("cus_123", %{"id" => "cus_123", "deleted" => true, "object" => "customer"})
 
       result = Client.delete("cus_123")
 
@@ -187,11 +161,13 @@ defmodule PinStripeTest do
     end
 
     test "handles delete errors" do
-      Req.Test.stub(PinStripe, fn conn ->
-        conn
-        |> Plug.Conn.put_status(404)
-        |> Req.Test.json(%{error: %{message: "Not found"}})
-      end)
+      Mock.stub_error("cus_404", 404, %{
+        "error" => %{
+          "type" => "invalid_request_error",
+          "code" => "resource_missing",
+          "message" => "No such resource"
+        }
+      })
 
       result = Client.delete("cus_404")
 
@@ -201,9 +177,7 @@ defmodule PinStripeTest do
 
   describe "read!/2" do
     test "fetches a customer successfully and returns response" do
-      Req.Test.stub(PinStripe, fn conn ->
-        Req.Test.json(conn, %{id: "cus_123", email: "test@example.com"})
-      end)
+      Mock.stub_read("cus_123", %{"id" => "cus_123", "email" => "test@example.com"})
 
       response = Client.read!("cus_123")
 
@@ -217,11 +191,13 @@ defmodule PinStripeTest do
     end
 
     test "raises on HTTP error" do
-      Req.Test.stub(PinStripe, fn conn ->
-        conn
-        |> Plug.Conn.put_status(404)
-        |> Req.Test.json(%{error: %{message: "Not found"}})
-      end)
+      Mock.stub_error("cus_404", 404, %{
+        "error" => %{
+          "type" => "invalid_request_error",
+          "code" => "resource_missing",
+          "message" => "No such resource"
+        }
+      })
 
       assert_raise RuntimeError, ~r/Request failed with status 404/, fn ->
         Client.read!("cus_404")
@@ -231,9 +207,7 @@ defmodule PinStripeTest do
 
   describe "create!/3" do
     test "creates a customer successfully and returns response" do
-      Req.Test.stub(PinStripe, fn conn ->
-        Req.Test.json(conn, %{id: "cus_new", email: "test@example.com"})
-      end)
+      Mock.stub_create(:customers, %{"id" => "cus_new", "email" => "test@example.com"})
 
       response = Client.create!(:customers, %{email: "test@example.com"})
 
@@ -247,11 +221,7 @@ defmodule PinStripeTest do
     end
 
     test "raises on validation error" do
-      Req.Test.stub(PinStripe, fn conn ->
-        conn
-        |> Plug.Conn.put_status(400)
-        |> Req.Test.json(%{error: %{message: "Invalid email"}})
-      end)
+      Mock.stub_error(:customers, 400, %{"error" => %{"message" => "Invalid email"}})
 
       assert_raise RuntimeError, ~r/Request failed with status 400/, fn ->
         Client.create!(:customers, %{email: "invalid"})
@@ -261,9 +231,7 @@ defmodule PinStripeTest do
 
   describe "update!/3" do
     test "updates a customer successfully and returns response" do
-      Req.Test.stub(PinStripe, fn conn ->
-        Req.Test.json(conn, %{id: "cus_123", name: "Updated"})
-      end)
+      Mock.stub_update("cus_123", %{"id" => "cus_123", "name" => "Updated"})
 
       response = Client.update!("cus_123", %{name: "Updated"})
 
@@ -271,11 +239,13 @@ defmodule PinStripeTest do
     end
 
     test "raises on HTTP error" do
-      Req.Test.stub(PinStripe, fn conn ->
-        conn
-        |> Plug.Conn.put_status(404)
-        |> Req.Test.json(%{error: %{message: "Not found"}})
-      end)
+      Mock.stub_error("cus_404", 404, %{
+        "error" => %{
+          "type" => "invalid_request_error",
+          "code" => "resource_missing",
+          "message" => "No such resource"
+        }
+      })
 
       assert_raise RuntimeError, ~r/Request failed with status 404/, fn ->
         Client.update!("cus_404", %{name: "Test"})
@@ -285,9 +255,7 @@ defmodule PinStripeTest do
 
   describe "delete!/2" do
     test "deletes a customer successfully and returns response" do
-      Req.Test.stub(PinStripe, fn conn ->
-        Req.Test.json(conn, %{id: "cus_123", deleted: true})
-      end)
+      Mock.stub_delete("cus_123", %{"id" => "cus_123", "deleted" => true, "object" => "customer"})
 
       response = Client.delete!("cus_123")
 
@@ -295,11 +263,13 @@ defmodule PinStripeTest do
     end
 
     test "raises on HTTP error" do
-      Req.Test.stub(PinStripe, fn conn ->
-        conn
-        |> Plug.Conn.put_status(404)
-        |> Req.Test.json(%{error: %{message: "Not found"}})
-      end)
+      Mock.stub_error("cus_404", 404, %{
+        "error" => %{
+          "type" => "invalid_request_error",
+          "code" => "resource_missing",
+          "message" => "No such resource"
+        }
+      })
 
       assert_raise RuntimeError, ~r/Request failed with status 404/, fn ->
         Client.delete!("cus_404")

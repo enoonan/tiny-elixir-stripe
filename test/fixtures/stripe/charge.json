@@ -1,0 +1,148 @@
+{
+  "receipt_url": "https://pay.stripe.com/receipts/payment/CAcaFwoVYWNjdF8xU2ZTRXRSS2xneXcyWTg2KPOKlsoGMgZwE4HOnxs6LBaRxwuEjH0sTmGo8zYND_DFNxZ02dirZQexOY_moifBLYxRZ5T31RlN6tns",
+  "failure_message": null,
+  "shipping": null,
+  "refunded": false,
+  "amount_refunded": 0,
+  "livemode": false,
+  "customer": null,
+  "statement_descriptor": null,
+  "receipt_email": null,
+  "payment_method": "card_1Sg75jRKlgyw2Y86qcC5P1vM",
+  "created": 1766163827,
+  "transfer_data": null,
+  "balance_transaction": "txn_3Sg75jRKlgyw2Y861v2zS8lu",
+  "payment_intent": null,
+  "source": {
+    "address_city": null,
+    "address_country": null,
+    "address_line1": null,
+    "address_line1_check": null,
+    "address_line2": null,
+    "address_state": null,
+    "address_zip": null,
+    "address_zip_check": null,
+    "allow_redisplay": "unspecified",
+    "brand": "Visa",
+    "country": "US",
+    "customer": null,
+    "cvc_check": "pass",
+    "dynamic_last4": null,
+    "email": null,
+    "exp_month": 12,
+    "exp_year": 2026,
+    "fingerprint": "O8kpx0N47ubxV2WE",
+    "funding": "credit",
+    "id": "card_1Sg75jRKlgyw2Y86qcC5P1vM",
+    "last4": "4242",
+    "metadata": {},
+    "name": null,
+    "object": "card",
+    "phone": null,
+    "regulated_status": "unregulated",
+    "tokenization_method": null,
+    "wallet": null
+  },
+  "application": null,
+  "dispute": null,
+  "disputed": false,
+  "refunds": {
+    "data": [],
+    "has_more": false,
+    "object": "list",
+    "total_count": 0,
+    "url": "/v1/charges/ch_3Sg75jRKlgyw2Y8616pHU3TQ/refunds"
+  },
+  "statement_descriptor_suffix": null,
+  "invoice": null,
+  "application_fee": null,
+  "amount_captured": 1000,
+  "status": "succeeded",
+  "paid": true,
+  "description": "PinStripe Test Fixture",
+  "id": "ch_3Sg75jRKlgyw2Y8616pHU3TQ",
+  "destination": null,
+  "payment_method_details": {
+    "card": {
+      "amount_authorized": 1000,
+      "authorization_code": "720470",
+      "brand": "visa",
+      "checks": {
+        "address_line1_check": null,
+        "address_postal_code_check": null,
+        "cvc_check": "pass"
+      },
+      "country": "US",
+      "exp_month": 12,
+      "exp_year": 2026,
+      "extended_authorization": {
+        "status": "disabled"
+      },
+      "fingerprint": "O8kpx0N47ubxV2WE",
+      "funding": "credit",
+      "incremental_authorization": {
+        "status": "unavailable"
+      },
+      "installments": null,
+      "last4": "4242",
+      "mandate": null,
+      "multicapture": {
+        "status": "unavailable"
+      },
+      "network": "visa",
+      "network_token": {
+        "used": false
+      },
+      "network_transaction_id": "795610711212048",
+      "overcapture": {
+        "maximum_amount_capturable": 1000,
+        "status": "unavailable"
+      },
+      "regulated_status": "unregulated",
+      "three_d_secure": null,
+      "wallet": null
+    },
+    "type": "card"
+  },
+  "outcome": {
+    "advice_code": null,
+    "network_advice_code": null,
+    "network_decline_code": null,
+    "network_status": "approved_by_network",
+    "reason": null,
+    "risk_level": "normal",
+    "risk_score": 18,
+    "seller_message": "Payment complete.",
+    "type": "authorized"
+  },
+  "captured": true,
+  "application_fee_amount": null,
+  "currency": "usd",
+  "object": "charge",
+  "on_behalf_of": null,
+  "source_transfer": null,
+  "order": null,
+  "failure_code": null,
+  "calculated_statement_descriptor": "SANDBOX",
+  "billing_details": {
+    "address": {
+      "city": null,
+      "country": null,
+      "line1": null,
+      "line2": null,
+      "postal_code": null,
+      "state": null
+    },
+    "email": null,
+    "name": null,
+    "phone": null,
+    "tax_id": null
+  },
+  "transfer_group": null,
+  "review": null,
+  "failure_balance_transaction": null,
+  "receipt_number": null,
+  "fraud_details": {},
+  "amount": 1000,
+  "metadata": {}
+}

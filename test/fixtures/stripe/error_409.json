@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "idempotency_key_in_use",
+    "message": "The idempotency key provided is currently being used in another request",
+    "type": "idempotency_error"
+  }
+}

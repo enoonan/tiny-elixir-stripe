@@ -5,7 +5,7 @@ defmodule PinStripe.ConfigurationTest do
     test "Client uses :stripe_api_key config key" do
       # Set the config
       Application.put_env(:pin_stripe, :stripe_api_key, "sk_test_config_key")
-      Application.put_env(:pin_stripe, :req_options, plug: {Req.Test, PinStripe})
+      Application.put_env(:pin_stripe, :req_options, plug: {Req.Test, PinStripe}, retry: false)
 
       Req.Test.stub(PinStripe, fn conn ->
         # Verify the auth header contains the config value
@@ -18,9 +18,9 @@ defmodule PinStripe.ConfigurationTest do
       # Make a request to trigger the auth
       PinStripe.Client.read("cus_123")
 
-      # Clean up
-      Application.delete_env(:pin_stripe, :stripe_api_key)
-      Application.delete_env(:pin_stripe, :req_options)
+      # Restore default test config
+      Application.put_env(:pin_stripe, :stripe_api_key, "sk_test_123")
+      Application.put_env(:pin_stripe, :req_options, plug: {Req.Test, PinStripe}, retry: false)
     end
 
     test "Client raises helpful error when :stripe_api_key is not configured" do
@@ -30,6 +30,9 @@ defmodule PinStripe.ConfigurationTest do
       assert_raise ArgumentError, ~r/:stripe_api_key/, fn ->
         PinStripe.Client.read("cus_123")
       end
+
+      # Restore default test config
+      Application.put_env(:pin_stripe, :stripe_api_key, "sk_test_123")
     end
   end
 
@@ -51,7 +54,7 @@ defmodule PinStripe.ConfigurationTest do
       # Verify that the signature verification works with this config
       assert :ok = PinStripe.WebhookSignature.verify(payload, signature, secret)
 
-      # Clean up
+      # Clean up (this key is not set globally, so we can delete it)
       Application.delete_env(:pin_stripe, :stripe_webhook_secret)
     end
 

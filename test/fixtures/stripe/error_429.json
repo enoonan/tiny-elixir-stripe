@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "rate_limit",
+    "message": "Too many requests",
+    "type": "rate_limit_error"
+  }
+}

@@ -1,0 +1,11 @@
+# Sobelow security scanning configuration
+# https://github.com/nccgroup/sobelow
+
+[
+  verbose: false,
+  private: false,
+  skip: false,
+  # Ignore test fixture module - file operations use controlled paths from app config,
+  # not user input. Module is only used in test environment.
+  ignore_files: ["lib/test/fixtures.ex"]
+]

@@ -442,21 +442,54 @@ defmodule PinStripe.Client do
 
   def request!(url, options \\ []), do: Req.request!(new(url: parse_url(url)), options)
 
-  defp parse_url("product_" <> _ = id), do: "/products/#{id}"
-  defp parse_url("price_" <> _ = id), do: "/prices/#{id}"
-  defp parse_url("sub_" <> _ = id), do: "/subscriptions/#{id}"
-  defp parse_url("cus_" <> _ = id), do: "/customers/#{id}"
-  defp parse_url("cs_" <> _ = id), do: "/checkout/sessions/#{id}"
-  defp parse_url("inv_" <> _ = id), do: "/invoices/#{id}"
-  defp parse_url("evt_" <> _ = id), do: "/events/#{id}"
-  defp parse_url(url) when is_binary(url), do: url
+  @doc """
+  Parses a Stripe ID or URL path into a full API path.
 
-  defp entity_to_path(:customers), do: {:ok, "/customers"}
-  defp entity_to_path(:products), do: {:ok, "/products"}
-  defp entity_to_path(:prices), do: {:ok, "/prices"}
-  defp entity_to_path(:subscriptions), do: {:ok, "/subscriptions"}
-  defp entity_to_path(:invoices), do: {:ok, "/invoices"}
-  defp entity_to_path(:events), do: {:ok, "/events"}
-  defp entity_to_path(:checkout_sessions), do: {:ok, "/checkout/sessions"}
-  defp entity_to_path(_), do: {:error, :unrecognized_entity_type}
+  Recognizes Stripe ID prefixes and converts them to the appropriate API endpoint.
+  Custom paths are returned as-is.
+
+  ## Examples
+
+      iex> PinStripe.Client.parse_url("cus_123")
+      "/customers/cus_123"
+
+      iex> PinStripe.Client.parse_url("product_abc")
+      "/products/product_abc"
+
+      iex> PinStripe.Client.parse_url("/custom/path")
+      "/custom/path"
+  """
+  def parse_url("product_" <> _ = id), do: "/products/#{id}"
+  def parse_url("price_" <> _ = id), do: "/prices/#{id}"
+  def parse_url("sub_" <> _ = id), do: "/subscriptions/#{id}"
+  def parse_url("cus_" <> _ = id), do: "/customers/#{id}"
+  def parse_url("cs_" <> _ = id), do: "/checkout/sessions/#{id}"
+  def parse_url("inv_" <> _ = id), do: "/invoices/#{id}"
+  def parse_url("evt_" <> _ = id), do: "/events/#{id}"
+  def parse_url(url) when is_binary(url), do: url
+
+  @doc """
+  Converts an entity atom to its API path.
+
+  Returns `{:ok, path}` for recognized entities, or `{:error, :unrecognized_entity_type}` otherwise.
+
+  ## Examples
+
+      iex> PinStripe.Client.entity_to_path(:customers)
+      {:ok, "/customers"}
+
+      iex> PinStripe.Client.entity_to_path(:products)
+      {:ok, "/products"}
+
+      iex> PinStripe.Client.entity_to_path(:invalid)
+      {:error, :unrecognized_entity_type}
+  """
+  def entity_to_path(:customers), do: {:ok, "/customers"}
+  def entity_to_path(:products), do: {:ok, "/products"}
+  def entity_to_path(:prices), do: {:ok, "/prices"}
+  def entity_to_path(:subscriptions), do: {:ok, "/subscriptions"}
+  def entity_to_path(:invoices), do: {:ok, "/invoices"}
+  def entity_to_path(:events), do: {:ok, "/events"}
+  def entity_to_path(:checkout_sessions), do: {:ok, "/checkout/sessions"}
+  def entity_to_path(_), do: {:error, :unrecognized_entity_type}
 end

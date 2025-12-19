@@ -358,9 +358,17 @@ client = Client.new(receive_timeout: 30_000)
 {:ok, response} = Req.get(client, url: "/customers/cus_123")
 ```
 
-### Testing
+## Testing
 
-Configure Req.Test for testing:
+PinStripe provides comprehensive testing utilities to help you test your Stripe integrations without making real API calls.
+
+### Mock Helpers (Recommended)
+
+The `PinStripe.Test.Mock` module provides high-level helpers for stubbing Stripe API responses with minimal boilerplate.
+
+#### Setup
+
+Configure your test environment:
 
 ```elixir
 # config/test.exs
@@ -368,22 +376,408 @@ config :pin_stripe,
   req_options: [plug: {Req.Test, PinStripe}]
 ```
 
-In your tests:
+#### CRUD Helpers
+
+The easiest way to stub Stripe operations is with high-level helpers that automatically handle URL resolution and HTTP method matching:
+
+```elixir
+alias PinStripe.Test.Mock
+alias PinStripe.Client
+
+test "reads a customer" do
+  Mock.stub_read("cus_123", %{
+    "id" => "cus_123",
+    "email" => "test@example.com"
+  })
+  
+  {:ok, response} = Client.read("cus_123")
+  assert response.body["email"] == "test@example.com"
+end
+
+test "lists customers" do
+  Mock.stub_read(:customers, %{
+    "object" => "list",
+    "data" => [
+      %{"id" => "cus_1", "email" => "user1@example.com"},
+      %{"id" => "cus_2", "email" => "user2@example.com"}
+    ],
+    "has_more" => false
+  })
+  
+  {:ok, response} = Client.read(:customers)
+  assert length(response.body["data"]) == 2
+end
+
+test "creates a product" do
+  Mock.stub_create(:products, %{
+    "id" => "prod_new",
+    "name" => "Test Product"
+  })
+  
+  {:ok, response} = Client.create(:products, %{name: "Test Product"})
+  assert response.body["id"] == "prod_new"
+end
+
+test "updates a customer" do
+  Mock.stub_update("cus_123", %{
+    "id" => "cus_123",
+    "name" => "Updated Name"
+  })
+  
+  {:ok, response} = Client.update("cus_123", %{name: "Updated Name"})
+  assert response.body["name"] == "Updated Name"
+end
+
+test "deletes a customer" do
+  Mock.stub_delete("cus_123", %{
+    "id" => "cus_123",
+    "deleted" => true,
+    "object" => "customer"
+  })
+  
+  {:ok, response} = Client.delete("cus_123")
+  assert response.body["deleted"] == true
+end
+
+test "handles not found error" do
+  Mock.stub_error("cus_nonexistent", 404, %{
+    "error" => %{
+      "type" => "invalid_request_error",
+      "code" => "resource_missing"
+    }
+  })
+  
+  assert {:error, %{status: 404}} = Client.read("cus_nonexistent")
+end
+
+test "handles validation error on create" do
+  Mock.stub_error(:customers, 400, %{
+    "error" => %{
+      "message" => "Invalid email address",
+      "param" => "email"
+    }
+  })
+  
+  {:error, response} = Client.create(:customers, %{email: "invalid"})
+  assert response.body["error"]["param"] == "email"
+end
+
+test "handles API key error for any request" do
+  Mock.stub_error(:any, 401, %{
+    "error" => %{"message" => "Invalid API key"}
+  })
+  
+  assert {:error, %{status: 401}} = Client.read("cus_123")
+end
+```
+
+**Available helpers:**
+- `stub_read/2` - Stub read operations (by ID or entity type for lists)
+- `stub_create/2` - Stub create operations (by entity type)
+- `stub_update/2` - Stub update operations (by ID)
+- `stub_delete/2` - Stub delete operations (by ID)
+- `stub_error/3` - Stub error responses (for ID, entity type, or `:any`)
+
+These helpers work seamlessly with fixtures:
+
+```elixir
+test "uses fixture with helper" do
+  customer = PinStripe.Test.Fixtures.load(:customer)
+  Mock.stub_read("cus_123", customer)
+  
+  {:ok, response} = Client.read("cus_123")
+  assert response.body["object"] == "customer"
+end
+
+test "uses error fixture with helper" do
+  error = PinStripe.Test.Fixtures.load(:error_404)
+  Mock.stub_error("cus_missing", 404, error)
+  
+  assert {:error, %{status: 404}} = Client.read("cus_missing")
+end
+```
+
+#### Advanced Stubbing
+
+For more complex scenarios like handling multiple operations in one stub, use the lower-level `stub/1` function:
+
+```elixir
+test "handles multiple operations in one stub" do
+  Mock.stub(fn conn ->
+    case {conn.method, conn.request_path} do
+      {"GET", "/v1/customers/" <> id} ->
+        Mock.json(conn, %{"id" => id, "email" => "#{id}@example.com"})
+      
+      {"POST", "/v1/customers"} ->
+        Mock.json(conn, %{"id" => "cus_new", "email" => "new@example.com"})
+      
+      {"DELETE", "/v1/customers/" <> id} ->
+        Mock.json(conn, %{"id" => id, "deleted" => true})
+      
+      _ ->
+        conn
+    end
+  end)
+  
+  {:ok, read_resp} = Client.read("cus_123")
+  {:ok, create_resp} = Client.create(:customers, %{email: "new@example.com"})
+  {:ok, delete_resp} = Client.delete("cus_123")
+end
+```
+
+For more details, see the [PinStripe.Test.Mock](https://hexdocs.pm/pin_stripe/PinStripe.Test.Mock.html) documentation.
+
+### Fixtures (Advanced)
+
+For tests that need realistic Stripe API responses, `PinStripe.Test.Fixtures` provides automatic fixture generation from real Stripe data.
+
+#### Fixture Types
+
+**Error Fixtures (Atoms)** - Self-contained, instant generation:
+- Use atoms: `:error_400`, `:error_401`, `:error_402`, etc.
+- No Stripe CLI required
+- No API calls made
+- Not cached to filesystem
+- Match actual Stripe error responses
+
+**API Resources & Webhooks (Strings)** - Require Stripe setup:
+- Use strings: `"customer"`, `"invoice"`, `"customer.created"`, etc.
+- Require Stripe CLI and test mode API key
+- Created via real Stripe API
+- Cached to filesystem after first generation
+
+#### ⚠️  Important: Side Effects (API Resources Only)
+
+**API resource fixture generation creates real test data in your Stripe account.**
+
+- Resources (customers, products, etc.) are created in test mode
+- Objects are marked with "PinStripe Test Fixture" for identification
+- Only test mode API keys (starting with `sk_test_`) are allowed
+- **Recommendation:** Commit generated fixtures to git so they only generate once
+
+Error fixtures are self-contained and don't create any side effects.
+
+#### Requirements (API Resources Only)
+
+- [Stripe CLI](https://stripe.com/docs/stripe-cli) installed and authenticated
+- Test mode API key configured
+
+#### Setup
+
+Configure your test mode API key:
+
+```elixir
+# config/test.exs
+config :pin_stripe,
+  stripe_api_key: System.get_env("STRIPE_SECRET_KEY"),
+  req_options: [plug: {Req.Test, PinStripe}]
+```
+
+#### Basic Usage
+
+**Error fixtures (atoms)** - instant, no setup required:
+
+```elixir
+test "handles not found error" do
+  # Error fixtures use atoms and generate instantly
+  error = PinStripe.Test.Fixtures.load(:error_404)
+  
+  Req.Test.stub(PinStripe, fn conn ->
+    conn
+    |> Plug.Conn.put_status(404)
+    |> Req.Test.json(error)
+  end)
+  
+  assert {:error, %{status: 404}} = Client.read("cus_nonexistent")
+  assert error["error"]["code"] == "resource_missing"
+end
+```
+
+**API resource fixtures (strings)** - require Stripe CLI:
 
 ```elixir
 test "creates a customer" do
+  # Load/generate a customer fixture (auto-cached)
+  # Requires Stripe CLI on first run
+  fixture = PinStripe.Test.Fixtures.load(:customer)
+  
   Req.Test.stub(PinStripe, fn conn ->
-    Req.Test.json(conn, %{
-      id: "cus_test_123",
-      email: "test@example.com",
-      object: "customer"
-    })
+    Req.Test.json(conn, fixture)
   end)
-
+  
   {:ok, response} = Client.create(:customers, %{email: "test@example.com"})
-  assert response.body["id"] == "cus_test_123"
+  assert response.body["object"] == "customer"
 end
 ```
+
+On first run (API resources only):
+1. Validates your test mode API key
+2. Detects your Stripe account's API version
+3. Creates a customer in Stripe test mode
+4. Caches the response in `test/fixtures/stripe/customer.json`
+5. Returns the fixture data
+
+Subsequent test runs use the cached fixture (no API calls).
+
+#### Customizing Fixtures
+
+Generate fixtures with specific attributes:
+
+```elixir
+# Customer with specific email (use atoms for API resources)
+customer = PinStripe.Test.Fixtures.load(:customer, email: "alice@test.com")
+
+# Customer with metadata
+customer = PinStripe.Test.Fixtures.load(:customer,
+  email: "test@example.com",
+  metadata: %{user_id: "123", plan: "premium"}
+)
+
+# Webhook event with custom data (use strings for webhook events - they have dots)
+event = PinStripe.Test.Fixtures.load("customer.created",
+  data: %{object: %{email: "custom@test.com"}}
+)
+```
+
+Each unique combination of options creates a separate cached fixture:
+
+```
+test/fixtures/stripe/
+  .api_version              # Tracks current API version
+  customer.json             # Base customer fixture
+  customer-a3f2b9c1.json   # Customer with email: "alice@test.com"
+  customer-d8e4f7a2.json   # Customer with different options
+```
+
+#### API Version Management
+
+Fixtures match your Stripe account's API version at the time they're first generated. The version is tracked in `test/fixtures/stripe/.api_version`.
+
+When you upgrade your Stripe account's API version, run:
+
+```bash
+mix pin_stripe.sync_api_version
+```
+
+This will:
+- Detect your account's current API version
+- Clear all existing fixtures if the version changed
+- Update the `.api_version` file
+- Fixtures will regenerate with the new version on next test run
+
+#### Supported Fixtures
+
+**API Resources:**
+- `customer`, `product`, `price`, `subscription`, `invoice`
+- `charge`, `payment_intent`, `refund`
+
+**Webhook Events:**
+- `customer.created`, `customer.updated`, `customer.deleted`
+- `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`
+- `invoice.paid`, `invoice.payment_failed`
+
+**Error Responses:**
+- `error_404`, `error_400`, `error_401`, `error_429`
+
+#### Testing Examples
+
+**Testing API responses:**
+
+```elixir
+test "handles customer creation" do
+  fixture = PinStripe.Test.Fixtures.load(:customer)
+  
+  Req.Test.stub(PinStripe, fn conn ->
+    Req.Test.json(conn, fixture)
+  end)
+  
+  {:ok, response} = Client.create(:customers, %{email: "test@example.com"})
+  assert response.body["id"] == fixture["id"]
+end
+```
+
+**Testing webhook handlers:**
+
+```elixir
+test "handles customer.created webhook" do
+  event = PinStripe.Test.Fixtures.load("customer.created")
+  
+  conn = build_webhook_conn(event)
+  conn = MyAppWeb.StripeWebhookController.create(conn, event)
+  
+  assert conn.status == 200
+end
+```
+
+**Testing error handling:**
+
+```elixir
+test "handles not found error" do
+  error = PinStripe.Test.Fixtures.load("error_404")
+  
+  Req.Test.stub(PinStripe, fn conn ->
+    conn
+    |> Plug.Conn.put_status(404)
+    |> Req.Test.json(error)
+  end)
+  
+  assert {:error, %{status: 404}} = Client.read("cus_nonexistent")
+end
+```
+
+**Testing with multiple variations:**
+
+```elixir
+test "handles different customer types" do
+  free_user = PinStripe.Test.Fixtures.load(:customer, 
+    metadata: %{plan: "free"}
+  )
+  premium_user = PinStripe.Test.Fixtures.load(:customer,
+    metadata: %{plan: "premium"}
+  )
+  
+  # Each gets cached separately and can be used in tests
+  assert free_user["metadata"]["plan"] == "free"
+  assert premium_user["metadata"]["plan"] == "premium"
+end
+```
+
+#### Best Practices
+
+**1. Commit fixtures to git**
+
+To avoid regenerating fixtures on every machine:
+
+```bash
+git add test/fixtures/stripe
+git commit -m "Add Stripe test fixtures"
+```
+
+**2. Use base fixtures and modify**
+
+Instead of generating many custom fixtures:
+
+```elixir
+# Load base fixture
+customer = PinStripe.Test.Fixtures.load(:customer)
+
+# Modify as needed in your test
+customer = Map.put(customer, "email", "specific@test.com")
+```
+
+**3. Clean up test data periodically**
+
+Objects accumulate in your Stripe test account. They're marked with metadata for easy identification:
+
+```bash
+# List PinStripe test objects
+stripe customers list --limit 100 | grep "PinStripe Test Fixture"
+
+# Delete a specific customer
+stripe customers delete cus_xxx
+```
+
+For full documentation, see [PinStripe.Test.Fixtures](https://hexdocs.pm/pin_stripe/PinStripe.Test.Fixtures.html).
 
 ## Configuration
 

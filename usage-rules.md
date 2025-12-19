@@ -212,6 +212,158 @@ cat deps/pin_stripe/priv/supported_stripe_events.txt
 
 ## Testing
 
+PinStripe provides comprehensive test helpers in `PinStripe.Test.Mock` and `PinStripe.Test.Fixtures` for testing your Stripe integration without hitting the real API.
+
+### Test Helpers Overview
+
+**`PinStripe.Test.Mock`** - High-level mocking functions for common operations:
+- `stub_read/2` - Mock reading/listing resources
+- `stub_create/2` - Mock creating resources
+- `stub_update/2` - Mock updating resources
+- `stub_delete/1` - Mock deleting resources
+- `stub_error/1` or `stub_error/2` - Mock error responses
+- `stub_fixture/1` or `stub_fixture/2` - Mock using pre-built fixtures
+
+**`PinStripe.Test.Fixtures`** - Load realistic Stripe response data (can use live API or cached fixtures)
+
+### Basic Mock Usage
+
+```elixir
+defmodule MyAppTest do
+  use ExUnit.Case
+  alias PinStripe.Test.Mock
+
+  test "creates a customer" do
+    # Mock the create response
+    Mock.stub_create(:customers, %{
+      "id" => "cus_123",
+      "email" => "test@example.com"
+    })
+
+    # Your application code
+    {:ok, customer} = MyApp.create_customer("test@example.com")
+    
+    assert customer["id"] == "cus_123"
+  end
+
+  test "reads a customer" do
+    Mock.stub_read("cus_123", %{
+      "id" => "cus_123",
+      "email" => "test@example.com"
+    })
+
+    {:ok, customer} = MyApp.get_customer("cus_123")
+    
+    assert customer["email"] == "test@example.com"
+  end
+
+  test "lists customers" do
+    Mock.stub_read(:customers, [
+      %{"id" => "cus_1", "email" => "user1@example.com"},
+      %{"id" => "cus_2", "email" => "user2@example.com"}
+    ])
+
+    {:ok, customers} = MyApp.list_customers()
+    
+    assert length(customers) == 2
+  end
+end
+```
+
+### Testing Error Handling
+
+Use `stub_error/1` with predefined error atoms or `stub_error/2` for custom errors:
+
+```elixir
+test "handles not found errors" do
+  Mock.stub_error(:not_found)
+
+  assert {:error, %{status: 404}} = MyApp.get_customer("cus_invalid")
+end
+
+test "handles rate limiting" do
+  Mock.stub_error(:rate_limit)
+
+  assert {:error, %{status: 429}} = MyApp.create_customer("test@example.com")
+end
+
+test "handles custom validation errors" do
+  Mock.stub_error(:bad_request, %{
+    message: "Invalid email address",
+    param: "email"
+  })
+
+  assert {:error, response} = MyApp.create_customer("invalid")
+  assert response.body["error"]["param"] == "email"
+end
+```
+
+**Available error atoms:**
+- `:not_found` (404) - Resource doesn't exist
+- `:bad_request` (400) - Missing or invalid parameters
+- `:unauthorized` (401) - Invalid API key
+- `:rate_limit` (429) - Too many requests
+- `:server_error` (500) - Stripe server error
+
+### Using Error Fixtures
+
+For realistic error responses, use `stub_fixture/1` with error atoms:
+
+```elixir
+test "handles card declined errors" do
+  Mock.stub_fixture(:error_402)
+
+  {:error, response} = MyApp.charge_card(payment_method)
+  
+  assert response.body["error"]["type"] == "card_error"
+  assert response.body["error"]["code"] == "card_declined"
+end
+
+test "handles idempotency conflicts" do
+  Mock.stub_fixture(:error_409)
+
+  {:error, response} = MyApp.create_payment(idempotency_key: "duplicate")
+  
+  assert response.body["error"]["type"] == "idempotency_error"
+end
+```
+
+**Available error fixtures:**
+- `:error_400` - Bad Request (missing required parameter)
+- `:error_401` - Unauthorized (invalid API key)
+- `:error_402` - Request Failed (card declined)
+- `:error_403` - Forbidden (insufficient permissions)
+- `:error_404` - Not Found (resource doesn't exist)
+- `:error_409` - Conflict (idempotency key in use)
+- `:error_424` - External Dependency Failed
+- `:error_429` - Too Many Requests (rate limit)
+- `:error_500`, `:error_502`, `:error_503`, `:error_504` - Server Errors
+
+### Testing with Real Stripe Data
+
+Use fixtures to load real Stripe response data (requires Stripe CLI for first-time generation):
+
+```elixir
+test "handles real customer data structure" do
+  # Loads actual Stripe customer response (cached after first load)
+  Mock.stub_fixture("customer")
+
+  {:ok, customer} = MyApp.get_customer("cus_test")
+  
+  # Test against real Stripe data structure
+  assert Map.has_key?(customer, "id")
+  assert Map.has_key?(customer, "email")
+  assert customer["object"] == "customer"
+end
+```
+
+**Fixture Types:**
+- **Error Fixtures** - Use atoms (`:error_404`, `:error_400`, etc.), self-contained, no Stripe CLI required
+- **API Resources** - Use strings (`"customer"`, `"payment_intent"`), require Stripe CLI for initial generation  
+- **Webhook Events** - Use strings (`"customer.created"`), require Stripe CLI
+
+Error fixtures are generated instantly and don't create cached files.
+
 ### Testing Webhooks Locally
 
 Use the Stripe CLI to forward webhooks:
@@ -227,9 +379,9 @@ stripe trigger customer.created
 stripe trigger payment_intent.succeeded
 ```
 
-### Testing in Code
+### Testing Webhook Handlers
 
-Create test events manually:
+Test webhook handlers directly without HTTP:
 
 ```elixir
 test "handles customer.created event" do
@@ -247,6 +399,17 @@ test "handles customer.created event" do
   assert :ok = MyApp.StripeWebhookHandlers.handle_event(event)
 end
 ```
+
+### Test Setup
+
+In your `test_helper.exs`, configure the test adapter:
+
+```elixir
+# Use Req.Test adapter for mocking
+Application.put_env(:pin_stripe, :req_options, plug: {Req.Test, PinStripe})
+```
+
+This allows `Mock` functions to intercept Stripe API calls in tests.
 
 ## Mix Tasks
 
