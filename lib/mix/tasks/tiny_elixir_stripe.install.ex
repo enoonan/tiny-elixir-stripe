@@ -53,10 +53,15 @@ if Code.ensure_loaded?(Igniter) do
 
     @impl Igniter.Mix.Task
     def info(_argv, _composing_task) do
+      version = Mix.Project.config()[:version]
+      # Use major.minor for version constraint (standard practice)
+      # e.g., "0.1.3" becomes "~> 0.1"
+      [major, minor | _] = String.split(version, ".")
+      version_requirement = "~> #{major}.#{minor}"
+
       %Igniter.Mix.Task.Info{
         group: :tiny_elixir_stripe,
-        # Omit version requirement to let Hex determine the latest version
-        adds_deps: [:tiny_elixir_stripe],
+        adds_deps: [{:tiny_elixir_stripe, version_requirement}],
         installs: [],
         example: __MODULE__.Docs.example(),
         only: nil,
