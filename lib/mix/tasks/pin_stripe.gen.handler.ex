@@ -274,16 +274,36 @@ if Code.ensure_loaded?(Igniter) do
     end
 
     defp handler_already_exists?(igniter, module, event) do
-      case Igniter.Project.Module.find_module(igniter, module) do
-        {:ok, {_igniter, source, _zipper}} ->
-          content = Rewrite.Source.get(source, :content)
-          # Check if the event is already handled (in any format)
-          # We look for the event string in quotes, which should match both:
-          # handle("event", ...) and handle "event", ...
-          String.contains?(content, ~s("#{event}"))
+      # Check if handler exists by looking for handle DSL calls in the source
+      # We use zipper-based search instead of string matching to avoid false positives
+      # from documentation examples
+      with {:ok, {_igniter, _source, zipper}} <-
+             Igniter.Project.Module.find_module(igniter, module),
+           {:ok, _} <- find_handle_call_for_event(zipper, event) do
+        true
+      else
+        _ -> false
+      end
+    end
 
-        _ ->
-          false
+    defp find_handle_call_for_event(zipper, event) do
+      # Search for handle calls with this event as the first argument
+      # handle/2 can be called with either a function or a module
+      Igniter.Code.Function.move_to_function_call(
+        zipper,
+        :handle,
+        2,
+        &handle_call_matches_event?(&1, event)
+      )
+    end
+
+    defp handle_call_matches_event?(call_zipper, event) do
+      # Check if the first argument is a string matching our event
+      with {:ok, arg_zipper} <- Igniter.Code.Function.move_to_nth_argument(call_zipper, 0),
+           {_type, _meta, [^event]} <- Sourceror.Zipper.node(arg_zipper) do
+        true
+      else
+        _ -> false
       end
     end
 

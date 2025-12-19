@@ -47,8 +47,7 @@ defmodule PinStripe.MixProject do
 
   defp description do
     """
-    A sharp, professional Stripe SDK for Elixir with webhook handling, built on Req and Spark.
-    Provides a simple API client and declarative DSL for webhook handlers with Igniter-powered code generation.
+    A minimalist Stripe SDK for Elixir.
     """
   end
 

@@ -250,6 +250,37 @@ defmodule Mix.Tasks.PinStripe.Gen.HandlerTest do
       ])
       |> assert_has_warning(fn warning -> warning =~ ~r/already exists in/ end)
     end
+
+    test "does not confuse documentation examples for actual handlers" do
+      test_project()
+      |> Igniter.Project.Module.create_module(MyApp.StripeWebhookHandlers, """
+      use PinStripe.WebhookHandler
+
+      @moduledoc \"\"\"
+      Example usage:
+
+          handle "customer.created", fn event ->
+            # Handle the event
+            :ok
+          end
+      \"\"\"
+      """)
+      |> Igniter.compose_task("pin_stripe.gen.handler", [
+        "customer.created",
+        "--handler-type",
+        "function"
+      ])
+      |> then(fn igniter ->
+        # Should successfully add the handler, not warn about duplication
+        diff = Igniter.Test.diff(igniter, only: "lib/my_app/stripe_webhook_handlers.ex")
+        assert diff =~ ~s("customer.created")
+        assert diff =~ ~s(fn event ->)
+
+        # Should not have any warnings
+        refute Enum.any?(igniter.issues, fn issue -> issue.severity == :warning end)
+        igniter
+      end)
+    end
   end
 
   describe "edge cases" do
