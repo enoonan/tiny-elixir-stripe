@@ -1,7 +1,7 @@
 defmodule PinStripe.MixProject do
   use Mix.Project
 
-  @version "0.2.1"
+  @version "0.2.2"
   @source_url "https://github.com/enoonan/pin_stripe"
 
   def project do
@@ -79,10 +79,15 @@ defmodule PinStripe.MixProject do
           PinStripe.WebhookController,
           PinStripe.WebhookSignature
         ],
+        Testing: [
+          PinStripe.Test.Mock,
+          PinStripe.Test.Fixtures
+        ],
         "Mix Tasks": [
           Mix.Tasks.PinStripe.Install,
           Mix.Tasks.PinStripe.Gen.Handler,
           Mix.Tasks.PinStripe.SetWebhookPath,
+          Mix.Tasks.PinStripe.SyncApiVersion,
           Mix.Tasks.PinStripe.SyncWebhookHandlers,
           Mix.Tasks.PinStripe.UpdateSupportedEvents
         ],

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2025-12-19
+
+### Added
+
+- **`PinStripe.Test.Fixtures`** - Module for loading realistic Stripe test data
+  - Error fixtures for all HTTP error codes (400, 401, 403, 404, 429, 500, etc.)
+  - API resource fixtures with caching support
+  - `mix pin_stripe.sync_api_version` task for fixture version management
+- **`PinStripe.Test.Mock`** - High-level mocking helpers for Stripe API testing
+  - `stub_read/2` - Stub read operations by ID or entity type
+  - `stub_create/2` - Stub create operations by entity type
+  - `stub_update/2` - Stub update operations by ID
+  - `stub_delete/2` - Stub delete operations by ID
+  - `stub_error/3` - Stub error responses for any operation
+
 ## [0.2.1] - 2025-12-19
 
 ### Fixed
